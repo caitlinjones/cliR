@@ -340,7 +340,7 @@ validate_arg <- function(cli_arg, arg_val){
         }
         return(NULL)
     }
-    if(typeof(arg_val) != cli_arg$type){
+    if(!cli_arg$type %in% c(typeof(arg_val), class(arg_val))){  ## should we for use of one of these instead of either? 
         cat(paste0("\nERROR: ", cli_arg$name, " should be of type ", 
                    toupper(cli_arg$type), ", not ", typeof(arg_val), "\n\n"))
         q(save = 'no', status = 1)
