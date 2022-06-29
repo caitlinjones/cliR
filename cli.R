@@ -141,8 +141,9 @@ usage_summary <- function(cli){
         usage <- c(usage, unlist(tmp))
     }
     if(length(cli$opt_args) > 0){
-        opt_args <- setdiff(names(cli$opt_args), unlist(cli$req_choices))
-        tmp <- paste0("[--", opt_args, "]")
+        #opt_args <- setdiff(names(cli$opt_args), unlist(cli$req_choices))
+        #tmp <- paste0("[--", opt_args, "]")
+        tmp <- "[OPTIONS...]"
         usage <- c(usage, tmp)
     }
     usage
