@@ -342,7 +342,7 @@ validate_arg <- function(cli_arg, arg_val){
     }
     if(cli_arg$type == "integer"){
         cli_arg$type <- tryCatch({
-                            as.integer(cli$arg_type), 
+                            as.integer(cli$arg_type) 
                          }, error = function(){ 
                             cat(paste0("ERROR: ", cli_arg$name, " should be of type INTEGER"))
                             q(save = 'no', status = 1)
