@@ -1,5 +1,5 @@
 #' export
-parse_cl <- function(cli){
+parse_cl <- function(cli, log = FALSE){
 
     args <- commandArgs(trailingOnly = TRUE)
 
@@ -11,6 +11,12 @@ parse_cl <- function(cli){
     args <- structure_arg_list(args, cli)
     
     validate_args(cli, args)
+
+    if(log){
+        for(arg in names(args)){
+            cat(paste0("  [LOG] ", arg, " = ", paste0(args[[arg]], collapse = ", "), "\n"))
+        }
+    }
 
     cli <<- NULL
     
@@ -33,6 +39,10 @@ add_arg <- function(name, type = 'character', doc = '', nargs = 1, req = FALSE, 
                 options = options,
                 default = default)
 
+    if(grepl("\\.", arg$name)){
+        arg$group <- gsub("\\..*", "", arg$name)
+    }
+
     if(req){
         cli$req_args[[name]] <<- arg
     } else {
@@ -45,10 +55,10 @@ add_required_choice <- function(choice_id, arg_choices){
     cli$req_choices[[choice_id]] <<- arg_choices
 }
 
-# store the requirement that when argNotNull is NOT NULL, req_arg becomes a required arg
+# store the requirement that when arg_not_null is NOT NULL, req_arg becomes a required arg
 #' export
-add_dependent_req <- function(argNotNull, req_arg){
-    cli$dep_req[[argNotNull]] <<- req_arg
+add_dependent_req <- function(arg_not_null, req_arg){
+    cli$dep_req[[arg_not_null]] <<- req_arg
 }
 
 #' export
@@ -81,10 +91,18 @@ build_arg_help <- function(arg, longest_arg = NULL){
         x <- c(x, paste0(doc_str2, collapse = "\n"))
         x <- c(x, "\n")
     }
+
+    other_str = ""
     if(!is.null(arg$default)){
-        def_str <- strwrap(paste0("[default = ", paste0(arg$default, collapse = ","), "]"), 
-                            width = 80, indent = 80 - doc_width, exdent = 80 - doc_width)
-        x <- c(x, paste0(def_str, collapse = "\n"))
+        other_str <- paste0("[default = ", paste0(arg$default, collapse = ","), "] ")
+    }
+    if(!is.null(arg$group)){
+        other_str <- paste0(other_str, " [group = ", arg$group, "]")
+    }
+    if(other_str != ""){
+        other_str <- strwrap(other_str,
+                             width = 80, indent = 80 - doc_width, exdent = 80 - doc_width)
+        x <- c(x, paste0(other_str, collapse = "\n"))
         x <- c(x, "\n")
     }
     paste(x, collapse = "")
@@ -141,26 +159,30 @@ usage_detail <- function(cli){
                })
         help <- c(help, unlist(tmp))
     }
- 
+
     if(length(cli$req_choices)){
         help <- c(help, "\n [REQUIRED CHOICE] \n")
         tmp <- lapply(names(cli$req_choices), function(x){
                    c_help <- c("    ", toupper(x), "\n")
-                   for(choice in cli$req_choices[[x]]){
-                       if(choice != cli$req_choices[[x]][1]){
+                   for(i in seq(cli$req_choices[[x]])){
+                       choice <- cli$req_choices[[x]][[i]]
+                       if(i > 1){
                            c_help <- c(c_help, "          OR\n")
                        }
-                       c_help <- c(c_help, build_arg_help(cli$opt_args[[choice]], longest_arg = longest))
+                       for(ch in choice){
+                           arg_help <- build_arg_help(cli$opt_args[[ch]], longest_arg = longest)
+                           c_help <- c(c_help, arg_help) 
+                       }
                    }
                    c_help
                })
         help <- c(help, unlist(tmp))
     }
- 
-    if(length(cli$opt_args) > 0){
-        opt <- setdiff(names(cli$opt_args), unlist(cli$req_choices))
+
+    opts <- setdiff(names(cli$opt_args), unlist(cli$req_choices))
+    if(length(opts) > 0){
         help <- c(help, "\n [OPTIONS]\n")
-        tmp <- lapply(cli$opt_args[opt], function(x){
+        tmp <- lapply(cli$opt_args[opts], function(x){
                    build_arg_help(x, longest_arg = longest)
                })
         help <- c(help, unlist(tmp))
@@ -182,9 +204,9 @@ check_required_args <- function(cli, args){
 check_required_choices <- function(cli, args){
     errs <- unlist(
               sapply(names(cli$req_choices), function(x){
-                inc <- which(cli$req_choices[[x]] %in% names(args))
+                inc <- which(sapply(cli$req_choices[[x]], function(i){ all(i %in% names(args)) }))
                 if(length(inc) != 1){
-                    return(paste0("  Must choose one argument as ", x, ": ", 
+                    return(paste0("  Must choose one option as ", x, ": ", 
                            paste0(cli$req_choices[[x]], collapse = "|")))
                 }
               })
@@ -297,8 +319,29 @@ structure_arg_list <- function(args, cli){
 
 validate_arg <- function(cli_arg, arg_val){
     ## check type
+    if(cli_arg$type == 'file'){
+        files_exist <- sapply(arg_val, file.exists)
+        if(!all(files_exist)){
+            cat(paste0("\nERROR: file(s) do not exist:\n", 
+                       paste(arg_val[!files_exist], collapse = "\n"), 
+                       "\n"))
+            q(save = 'no', status = 1) 
+        }
+        return(NULL)
+    }
+    if(cli_arg$type == 'path'){
+        dirs_exist <- sapply(arg_val, dir.exists)
+        if(!all(dirs_exist)){
+            cat(paste0("\nERROR: path(s) do not exist:\n", 
+                       paste(arg_val[!dirs_exist], collapse = "\n"), 
+                       "\n"))
+            q(save = 'no', status = 1)
+        }
+        return(NULL)
+    }
     if(typeof(arg_val) != cli_arg$type){
-        cat(paste0("\nERROR: ", cli_arg$name, " should be of type ", toupper(cli_arg$type), ", not ", typeof(arg_val), "\n\n"))
+        cat(paste0("\nERROR: ", cli_arg$name, " should be of type ", 
+                   toupper(cli_arg$type), ", not ", typeof(arg_val), "\n\n"))
         q(save = 'no', status = 1)
     }    
 
