@@ -1,3 +1,5 @@
+suppressMessages(library(tidyr))
+
 #' export
 parse_cl <- function(cli, log = FALSE, nest = TRUE){
 
