@@ -70,6 +70,19 @@ configure_cli <- function(){
 }
 
 
+#' export
+args_to_nested_list <- function(args){
+    lapply(names(args), function(arg){
+        levels <- rev(unlist(strsplit(arg, "\\.")))
+        arglist <- args[[arg]]
+        for(lvl in levels){
+            arglist <- list(arglist)
+            names(arglist) <- lvl
+        }
+    })
+}
+
+
 build_arg_help <- function(arg, longest_arg = NULL){
     x <- c("    ")
     nm <- c("--", arg$name)
@@ -340,9 +353,9 @@ validate_arg <- function(cli_arg, arg_val){
         }
         return(NULL)
     }
-    if(cli_arg$type == "integer"){
+    if(cli_arg$type == "integer" && !is.integer(arg_val)){
         arg_val <- tryCatch({
-                       as.integer(cli$arg_type) 
+                       as.integer(arg_val)
                     }, error = function(){ 
                        cat(paste0("ERROR: ", cli_arg$name, " should be of type INTEGER"))
                        q(save = 'no', status = 1)
