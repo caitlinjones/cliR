@@ -84,7 +84,8 @@ args_to_nested_list <- function(args){
             names(arglist) <- lvl
         }
         arglist
-    })
+    }) %>% 
+    unlist(recursive = FALSE, use.names = T)
 }
 
 
