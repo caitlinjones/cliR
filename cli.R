@@ -83,6 +83,7 @@ args_to_nested_list <- function(args){
             arglist <- list(arglist)
             names(arglist) <- lvl
         }
+        arglist
     })
 }
 
