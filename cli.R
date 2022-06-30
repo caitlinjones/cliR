@@ -1,5 +1,5 @@
 #' export
-parse_cl <- function(cli, log = FALSE){
+parse_cl <- function(cli, log = FALSE, nest = TRUE){
 
     args <- commandArgs(trailingOnly = TRUE)
 
@@ -16,6 +16,10 @@ parse_cl <- function(cli, log = FALSE){
         for(arg in names(args)){
             cat(paste0("  [LOG] ", arg, " = ", paste0(args[[arg]], collapse = ", "), "\n"))
         }
+    }
+
+    if(nest){
+        args <- args_to_nested_list(args)
     }
 
     cli <<- NULL
