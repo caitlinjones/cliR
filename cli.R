@@ -1,4 +1,7 @@
 suppressMessages(library(tidyr))
+suppressMessages(library(logger))
+
+CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
 
 #' export
 parse_cl <- function(cli, log = FALSE, nest = TRUE){
@@ -16,7 +19,7 @@ parse_cl <- function(cli, log = FALSE, nest = TRUE){
 
     if(log){
         for(arg in names(args)){
-            cat(paste0("  [LOG] ", arg, " = ", paste0(args[[arg]], collapse = ", "), "\n"))
+            log_level(CLI_LOG, paste0(arg, ": ", paste0(args[[arg]], collapse = ", "), "\n"))
         }
     }
 
@@ -76,18 +79,47 @@ configure_cli <- function(){
 }
 
 
+nest_arg <- function(arg){
+    levels <- rev(unlist(strsplit(names(arg), "\\.")))
+    arglist <- arg[[1]]
+    for(lvl in levels){
+        arglist <- list(arglist)
+        names(arglist) <- lvl        
+    }
+    arglist
+}
+
+merge_lists <- function(list1, list2){
+    fin <- list1
+    for(nm in names(list2)){
+        if(is.null(list2[[nm]])){
+            fin[[nm]] <- list2[[nm]]
+            next
+        } 
+        if(!identical(list1[[nm]], list2[[nm]])){
+            if(!is.list(list2[[nm]])){
+                fin[[nm]] <- c(fin[[nm]], list2[[nm]]) 
+            } else {
+                fin[[nm]] <- merge_lists(list1[[nm]], list2[[nm]])
+            }
+        }
+    }
+    fin
+}
+
 #' export
 args_to_nested_list <- function(args){
-    lapply(names(args), function(arg){
-        levels <- rev(unlist(strsplit(arg, "\\.")))
-        arglist <- args[[arg]]
-        for(lvl in levels){
-            arglist <- list(arglist)
-            names(arglist) <- lvl
+    nargs <- list() 
+    for(arg_name in names(args)){
+        nlist <- nest_arg(args[arg_name])
+        aname <- names(nlist)[1]
+        if(!aname %in% names(nargs)){
+            nargs <- c(nargs, nlist)
+        } else {
+            nargs[[aname]] <- merge_lists(nargs[[aname]],  nlist[[aname]])
         }
-        arglist
-    }) %>% 
-    unlist(recursive = FALSE, use.names = T)
+    } 
+    nargs
 }
 
 
