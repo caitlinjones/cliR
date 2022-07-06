@@ -1,6 +1,3 @@
-#suppressMessages(library(tidyr))
-#suppressMessages(library(logger))
-
 CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
 #cli <<- configure_cli()
 
@@ -84,8 +81,8 @@ add_arg <- function(name, type = 'character', doc = '', nargs = 1, req = FALSE,
         warning(paste0("argument ", name, " already added. OVERWRITING!")) 
     }
     arg <- list(name = name, 
-                doc = doc,
                 type = type,
+                doc = doc,
                 nargs = nargs,
                 req = req,
                 short = short,
@@ -126,7 +123,7 @@ add_required_choice <- function(choice_id, arg_choices){
 #' 
 #' @param arg_not_null  name of argument to check for null to determine 
 #'                      whether \code{req_arg} is required
-#' @param req_arg       name of argument to set as required when 
+#' @param req_arg       vector of name(s) of argument(s) to set as required when 
 #'                      \code{arg_not_null} is not null
 #'
 #' @export
@@ -175,6 +172,14 @@ merge_lists <- function(list1, list2){
             next
         } 
         if(!identical(list1[[nm]], list2[[nm]])){
+            ## if one is list but not the other, not sure 
+            ## what to do because one has names and the other does not
+            if(!all(is.list(list1), is.list(list2)) & 
+                (is.list(list1) | is.list(list2))){
+                cat(paste0("ERROR: List within item named ", nm, 
+                           " can not be merged with non-list item.\n"))
+                q(save = 'no', status = 1)
+            }
             if(!is.list(list2[[nm]])){
                 fin[[nm]] <- c(fin[[nm]], list2[[nm]]) 
             } else {
