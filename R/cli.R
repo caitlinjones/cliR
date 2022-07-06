@@ -3,7 +3,22 @@
 
 CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
 
-#' export
+#' Parse and validate command-line input
+#'
+#' Create an argument list and validate according to specifications in each CLI 
+#' argument object. 
+#'
+#' @param cli   command-line interface configuration, built with any
+#'              combination of argument objects 
+#' @param log   logical; when TRUE, final arguments will be logged in the 
+#'              console
+#' @param nest  logical; when TRUE, arguments with names including a '.' will
+#'              be nested accordingly; e.g., 'arg_group1.color = red' will be
+#'              in final argument list as arg_group1$color = red
+#'
+#' @return named list of all valid arguments 
+#' 
+#' @export
 parse_cl <- function(cli, log = FALSE, nest = TRUE){
 
     args <- commandArgs(trailingOnly = TRUE)
@@ -19,7 +34,10 @@ parse_cl <- function(cli, log = FALSE, nest = TRUE){
 
     if(log){
         for(arg in names(args)){
-            logger::log_level(CLI_LOG, paste0(arg, ": ", paste0(args[[arg]], collapse = ", "), "\n"))
+            logger::log_level(CLI_LOG, 
+                              paste0(arg, ": ", 
+                                     paste0(args[[arg]], collapse = ", "), 
+                                     "\n"))
         }
     }
 
@@ -33,9 +51,34 @@ parse_cl <- function(cli, log = FALSE, nest = TRUE){
 }
 
 
-#' export
-add_arg <- function(name, type = 'character', doc = '', nargs = 1, req = FALSE, short = NULL, 
-                     options = NULL, default = NULL){
+#' Add a command line argument to configuration
+#'
+#' Create an argument object with desired settings and add to CLI configuration
+#'
+#' @param name    argument name to be used on command line and in final 
+#                 argument list. to allow for nesting of multiple arguments, 
+#'                use '.' in n ame to indicate the nest levels. e.g., 
+#'                'arg_group1.color' will be structured as arg_group1$color. 
+#'                there is no limit to how many levels can be specified.
+#' @param type    data type or class of argument, or 'file' or 'path'. If type
+#'                is 'file' or 'path', existence of such file or path will be
+#'                tested. hence, not to be used for files to be created (output) 
+#' @param doc     help string
+#' @param nargs   number of expected arguments. use '+' for unknown number.
+#'                default = 1
+#' @param req     logical; when TRUE, argument will be required and if not
+#'                provided, script will fail. default = FALSE
+#' @param short   short name. short character string to use as an alternative
+#'                argument identifier on command line. default = NULL
+#' @param options vector of valid options for this argument. script will fail 
+#'                if value provided does not match any of these options. 
+#'                default = NULL (argument value may be any value satisfying 
+#                 other restrictions)
+#' @param default default argument value; default = NULL
+#'  
+#' @export
+add_arg <- function(name, type = 'character', doc = '', nargs = 1, req = FALSE, 
+                    short  = NULL, options = NULL, default = NULL){
     if(name %in% names(cli$all_args)){
         warning(paste0("argument ", name, " already added. OVERWRITING!")) 
     }
@@ -59,18 +102,18 @@ add_arg <- function(name, type = 'character', doc = '', nargs = 1, req = FALSE, 
     }
 }
 
-#' export
+#' @export
 add_required_choice <- function(choice_id, arg_choices){
     cli$req_choices[[choice_id]] <<- arg_choices
 }
 
 # store the requirement that when arg_not_null is NOT NULL, req_arg becomes a required arg
-#' export
+#' @export
 add_dependent_req <- function(arg_not_null, req_arg){
     cli$dep_req[[arg_not_null]] <<- req_arg
 }
 
-#' export
+#' @export
 configure_cli <- function(){
     list(req_args = list(),
          req_choices = list(),
