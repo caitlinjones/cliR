@@ -1,6 +1,8 @@
-This package is for building semi-sophisticated command line interfaces to R scripts. Interfaces may include required and optional arguments including nested or grouped arguments, choices between two arguments (or groups of arguments), and validation of command line input, among other features. 
+# cliR
+## R package for building semi-sophisticated command line interfaces to R scripts.
 
-Features include:
+
+### Features include:
   - required and optional arguments
   - nested arguments
   - argument dependencies
