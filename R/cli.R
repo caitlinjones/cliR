@@ -2,6 +2,7 @@
 #suppressMessages(library(logger))
 
 CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
+#cli <<- configure_cli()
 
 #' Parse and validate command-line input
 #'
@@ -102,17 +103,42 @@ add_arg <- function(name, type = 'character', doc = '', nargs = 1, req = FALSE,
     }
 }
 
+#' Add a requirement to CLI object for user to choose between two or more
+#' arguments or sets of arguments
+#'
+#' After adding all individual arguments to CLI object, set a requirement for
+#' user to use one option or set of options OR the other. 
+#' 
+#' @param choice_id    character; ID for the required choice. e.g., 'INPUT'
+#' @param arg_choices  list with two items, where each item is a vector of one
+#'                     or more arguments and the user must provide either ALL
+#'                     arguments in list item 1 or ALL items in list argument 2
+#' 
 #' @export
 add_required_choice <- function(choice_id, arg_choices){
     cli$req_choices[[choice_id]] <<- arg_choices
 }
 
-# store the requirement that when arg_not_null is NOT NULL, req_arg becomes a required arg
+#' Add a dependent or conditional requirement to an argument object in CLI
+#'
+#' Add a requirement to CLI object that an argument is only required when 
+#' a certain other argument is NOT NULL. 
+#' 
+#' @param arg_not_null  name of argument to check for null to determine 
+#'                      whether \code{req_arg} is required
+#' @param req_arg       name of argument to set as required when 
+#'                      \code{arg_not_null} is not null
+#'
 #' @export
 add_dependent_req <- function(arg_not_null, req_arg){
     cli$dep_req[[arg_not_null]] <<- req_arg
 }
 
+#' Initialize CLI configuration object
+#' 
+#' Create CLI object to hold required and optional arguments, required choices,
+#' and depending requirements 
+#'  
 #' @export
 configure_cli <- function(){
     list(req_args = list(),
@@ -121,7 +147,10 @@ configure_cli <- function(){
          opt_args = list())
 }
 
-
+#' Internal function to parse argument name and create nested list using '.'
+#' character as an indication of list levels
+#'
+#' @param arg  list containing argument value and named by arg name
 nest_arg <- function(arg){
     levels <- rev(unlist(strsplit(names(arg), "\\.")))
     arglist <- arg[[1]]
@@ -132,6 +161,12 @@ nest_arg <- function(arg){
     arglist
 }
 
+#' Merge two lists
+#' 
+#' Recursively combine two lists, returning the union of all list levels
+#' 
+#' @param list1  the first list to be merged
+#' @param list2  the second list to be merged
 merge_lists <- function(list1, list2){
     fin <- list1
     for(nm in names(list2)){
@@ -151,6 +186,16 @@ merge_lists <- function(list1, list2){
 }
 
 
+#' Create nested list from flat command line argument list
+#' 
+#' Parse argument list names to determine how list should be nested. Each '.'
+#' character in an argument name indicates that an inner list should be 
+#' created. e.g., list item name 'arg_group1.color.hot' will result in an
+#' inner list structured \code{arg_group1$color$hot}
+#' 
+#' @param args  single-level, named list of command line arguments
+#' 
+#' @return nested list
 args_to_nested_list <- function(args){
     nargs <- list() 
     for(arg_name in names(args)){
@@ -165,7 +210,13 @@ args_to_nested_list <- function(args){
     nargs
 }
 
-
+#' Format argument doc string for help
+#' 
+#' @param arg          argument object
+#' @param longest_arg  integer; length of the longest argument name, used for
+#'                     justification; default = NULL
+#' 
+#' @return formatted argument doc string
 build_arg_help <- function(arg, longest_arg = NULL){
     x <- c("    ")
     nm <- c("--", arg$name)
@@ -183,27 +234,39 @@ build_arg_help <- function(arg, longest_arg = NULL){
     x <- c(x, "\n")
 
     if(length(doc_str1) > 1){
-        doc_str2 <- strwrap(gsub(doc_str1[1], "", arg$doc), width = 80, indent = 80 - doc_width, exdent = 80 - doc_width)
+        doc_str2 <- strwrap(gsub(doc_str1[1], "", arg$doc), 
+                            width = 80, 
+                            indent = 80 - doc_width, 
+                            exdent = 80 - doc_width)
         x <- c(x, paste0(doc_str2, collapse = "\n"))
         x <- c(x, "\n")
     }
 
     other_str = ""
     if(!is.null(arg$default)){
-        other_str <- paste0("[default = ", paste0(arg$default, collapse = ","), "] ")
+        other_str <- paste0("[default = ", 
+                            paste0(arg$default, collapse = ","), 
+                            "] ")
     }
     if(!is.null(arg$group)){
         other_str <- paste0(other_str, " [group = ", arg$group, "]")
     }
     if(other_str != ""){
         other_str <- strwrap(other_str,
-                             width = 80, indent = 80 - doc_width, exdent = 80 - doc_width)
+                             width = 80, 
+                             indent = 80 - doc_width, 
+                             exdent = 80 - doc_width)
         x <- c(x, paste0(other_str, collapse = "\n"))
         x <- c(x, "\n")
     }
     paste(x, collapse = "")
 }
 
+#' Get longest string in vector of strings
+#'
+#' @param strings vector of character strings
+#' 
+#' @return length of longest character string in vector
 get_longest_str <- function(strings){
     max(
       unlist(
@@ -214,6 +277,11 @@ get_longest_str <- function(strings){
     )
 }
 
+#' Print usage
+#' 
+#' Print full usage and help page
+#' 
+#' @param cli  CLI object
 print_usage <- function(cli){
     summ <- usage_summary(cli)
     det <- usage_detail(cli)
@@ -222,6 +290,13 @@ print_usage <- function(cli){
     cat("\n")
 }
 
+#' Build usage summary
+#' 
+#' Construct single-line script usage summary
+#' 
+#' @param cli  CLI object
+#' 
+#' @return character string
 usage_summary <- function(cli){
     usage <- c("  Usage: script.R ")
     if(length(cli$req_args) > 0){
@@ -232,23 +307,34 @@ usage_summary <- function(cli){
     }
     if(length(cli$req_choices) > 0){
         tmp <- lapply(names(cli$req_choices), function(x){
-                   paste0("{", paste(paste0("--", cli$req_choices[[x]]), collapse = "|"), ' ', toupper(x), "}")
+                   paste0("{", 
+                          paste(paste0("--", cli$req_choices[[x]]), 
+                                collapse = "|"), 
+                          ' ', 
+                          toupper(x), 
+                          "}")
                })
         usage <- c(usage, unlist(tmp))
     }
     if(length(cli$opt_args) > 0){
-        #opt_args <- setdiff(names(cli$opt_args), unlist(cli$req_choices))
-        #tmp <- paste0("[--", opt_args, "]")
         tmp <- "[OPTIONS...]"
         usage <- c(usage, tmp)
     }
     usage
 }
 
-
+#' Build full usage including all argument documentation
+#' 
+#' Compile usage summary AND all argument documentation
+#' 
+#' @param cli CLI object
+#' 
+#' @return full usage string
 usage_detail <- function(cli){
     help <- c()
-    longest <- get_longest_str(c(names(cli$req_args), names(cli$opt_args))) + 4 #4 spaces for short version of arg name
+    ## add 4 spaces to the longest string to allow for short versions of 
+    ## arg names
+    longest <- get_longest_str(c(names(cli$req_args), names(cli$opt_args))) + 4
     if(length(cli$req_args) > 0){
         help <- c("\n [REQUIRED]\n")
         tmp <- lapply(cli$req_args, function(x){
@@ -267,7 +353,8 @@ usage_detail <- function(cli){
                            c_help <- c(c_help, "          OR\n")
                        }
                        for(ch in choice){
-                           arg_help <- build_arg_help(cli$opt_args[[ch]], longest_arg = longest)
+                           arg_help <- build_arg_help(cli$opt_args[[ch]], 
+                                                      longest_arg = longest)
                            c_help <- c(c_help, arg_help) 
                        }
                    }
@@ -288,20 +375,41 @@ usage_detail <- function(cli){
     help
 }
 
-
+#' Check for existence of required arguments
+#'
+#' If any required arguments are missing from parsed argument list, 
+#' print error message and quit with non-zero exit status
+#'
+#' @param cli   CLI object
+#' @param args  flat (not nested) argument list provided on command line
 check_required_args <- function(cli, args){
     if(!all(names(cli$req_args) %in% names(args))){
         print_usage(cli)
-        cat(paste0("\nMissing required arguments: ", paste(setdiff(names(cli$req_args), names(args)), collapse = ', ')))
+        cat(paste0("\nMissing required arguments: ", 
+                   paste(setdiff(names(cli$req_args), names(args)), 
+                         collapse = ', ')))
         cat("\n")
         q(save = 'no', status = 1)
     }
 }
 
+#' Check that required choices are made properly
+#'
+#' For each item in \code{cli$req_choices}, make sure that one of the two 
+#' sets of choices is provided. If not, print error message and quit with non-
+#' zero exit status
+#'
+#' @param cli   CLI object
+#' @param args  named, flat list of command line arguments
 check_required_choices <- function(cli, args){
     errs <- unlist(
               sapply(names(cli$req_choices), function(x){
-                inc <- which(sapply(cli$req_choices[[x]], function(i){ all(i %in% names(args)) }))
+                inc <- which(sapply(cli$req_choices[[x]], 
+                                    function(i){ 
+                                        all(i %in% names(args)) 
+                                    }
+                                   )
+                            )
                 if(length(inc) != 1){
                     return(paste0("  Must choose one option as ", x, ": ", 
                            paste0(cli$req_choices[[x]], collapse = "|")))
@@ -318,6 +426,13 @@ check_required_choices <- function(cli, args){
     }
 }
 
+#' Check that dependent requirements are satisfied
+#' 
+#' If an argument is required when another one provided and said argument is
+#' not also provided, print error message and exit with non-zero exit status
+#' 
+#' @param cli   CLI object                                                      
+#' @param args  named, flat list of command line arguments                      
 check_dependent_requirements <- function(cli, args){
     if(length(cli$dep_req) == 0){
         return(NULL)
@@ -327,7 +442,9 @@ check_dependent_requirements <- function(cli, args){
                 if(x %in% names(args) && !is.null(args[[x]])){
                     for(nm in cli$dep_req[[x]]){
                         if(!nm %in% names(args)){
-                            return(paste0("  Argument '", nm, "' required when using '--", x, "'."))
+                            return(paste0("  Argument '", nm, 
+                                          "' required when using '--", 
+                                          x, "'."))
                         }
                     }
                 }
@@ -342,6 +459,12 @@ check_dependent_requirements <- function(cli, args){
     }
 }
 
+
+#' Create a map of full argument names to their short alternatives
+#'
+#' @param cli  CLI object
+#' 
+#' @return list of full argument names, named by their short names
 map_arg_names <- function(cli){
     nameMap <- c()
     if(!is.null(cli$req_args) && length(cli$req_args) > 0){
@@ -371,6 +494,12 @@ map_arg_names <- function(cli){
     nameMap
 }
 
+
+#' Fill in argument list with defaults for arguments not provided on
+#' command line
+#'
+#' @param arglist  named, flat list of command line arguments                      
+#' @param cli      CLI object                                                      
 fill_in_defaults <- function(arglist, cli){
     complete_list <- arglist
     def <- setdiff(names(cli$opt_args), names(arglist))
@@ -380,6 +509,15 @@ fill_in_defaults <- function(arglist, cli){
     complete_list
 }
 
+
+#' Parse command line arguments and build one-level argument list
+#'
+#' TODO: LOOK AT THIS FUNCTION MORE CLOSELY TO GET BETTER DESCRIPTION
+#' 
+#' @param args  list of arguments read directly from command line
+#' @param cli CLI object
+#'
+#' @return structured argument linst 
 structure_arg_list <- function(args, cli){
     ## map short names to long
     nmMap <- map_arg_names(cli)
@@ -398,10 +536,13 @@ structure_arg_list <- function(args, cli){
                      }
                      argname <- nmMap[argname]
                  }
-                 last_val <- ifelse(i == length(namepos), length(args), namepos[i + 1] - 1)
+                 last_val <- ifelse(i == length(namepos), 
+                                    length(args), 
+                                    namepos[i + 1] - 1)
                  val_idxs <- seq(pos + 1, last_val)        
 
-                 if(length(val_idxs) > 1 && val_idxs[1] > val_idxs[2] || length(val_idxs) == 0){
+                 if(length(val_idxs) > 1 && val_idxs[1] > val_idxs[2] || 
+                     length(val_idxs) == 0){
                      val <- list(TRUE)
                  } else {
                      val <- list(c(type.convert(args[val_idxs], as.is = TRUE)))
@@ -414,6 +555,13 @@ structure_arg_list <- function(args, cli){
     arglist
 }
 
+
+#' Validate provided argument using its corresponding CLI argument object
+#'
+#' Use specifications in CLI argument object to validate provided argument
+#'
+#' @param cli_arg  argument object from CLI object
+#' @param arg_val  value provided for argument
 validate_arg <- function(cli_arg, arg_val){
     ## check type
     if(cli_arg$type == 'file'){
@@ -440,11 +588,12 @@ validate_arg <- function(cli_arg, arg_val){
         arg_val <- tryCatch({
                        as.integer(arg_val)
                     }, error = function(){ 
-                       cat(paste0("ERROR: ", cli_arg$name, " should be of type INTEGER"))
+                       cat(paste0("ERROR: ", cli_arg$name, 
+                                  " should be of type INTEGER"))
                        q(save = 'no', status = 1)
                    })
     }
-    if(!cli_arg$type %in% c(typeof(arg_val), class(arg_val))){  ## should we for use of one of these instead of either? 
+    if(!cli_arg$type %in% c(typeof(arg_val), class(arg_val))){  
         cat(paste0("\nERROR: ", cli_arg$name, " should be of type ", 
                    toupper(cli_arg$type), ", not ", typeof(arg_val), "\n\n"))
         q(save = 'no', status = 1)
@@ -460,11 +609,19 @@ validate_arg <- function(cli_arg, arg_val){
     ## check for valid option(s)
     if(!is.null(cli_arg$options) && !all(arg_val %in% cli_arg$options)){
         cat(paste0("\nERROR: Invalid option given for ", cli_arg$name, ": ", 
-                     paste0(setdiff(arg_val, cli_arg$options), collapse = ", "), "\n\n"))
+                   paste0(setdiff(arg_val, cli_arg$options), collapse = ", "), 
+                   "\n\n"))
         q(save = 'no', status = 1)
     }
 }
 
+#' Validate all arguments
+#'
+#' Check all arguments provided against the specifications in the corresponding
+#' CLI object argument
+#'
+#' @param cli  CLI object
+#' @param args flat, named list of arguments provided on command line
 validate_args <- function(cli, args){
     check_required_args(cli, args)
     check_dependent_requirements(cli, args)
@@ -475,4 +632,6 @@ validate_args <- function(cli, args){
         validate_arg(cli[[arg_type]][[x]], args[[x]])
     })          
 }
+
+cli <<- configure_cli()
 
