@@ -1,0 +1,18 @@
+Package: cliR
+Title: Command Line Interface Generator 
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Caitlin",
+           family = "Jones",
+           role = c("aut", "cre"),
+           email = "caitjbyrne@gmail.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: This package is for building semi-sophisticated command line interfaces to R scripts. Interfaces may include required and optional arguments including nested or grouped arguments, choices between two arguments (or groups of arguments), and validation of command line input, among other features.  
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Imports:
+    logger
