@@ -6,8 +6,6 @@ CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
 #' Create an argument list and validate according to specifications in each CLI 
 #' argument object. 
 #'
-#' @param cli   command-line interface configuration, built with any
-#'              combination of argument objects 
 #' @param log   logical; when TRUE, final arguments will be logged in the 
 #'              console
 #' @param nest  logical; when TRUE, arguments with names including a '.' will
@@ -17,7 +15,7 @@ CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
 #' @return named list of all valid arguments 
 #' 
 #' @export
-parse_cl <- function(cli, log = FALSE, nest = TRUE){
+parse_cl <- function(log = FALSE, nest = TRUE){
 
     args <- commandArgs(trailingOnly = TRUE)
 
@@ -121,7 +119,7 @@ add_required_choice <- function(choice_id, arg_choices){
 #' Add a requirement to CLI object that an argument is only required when 
 #' a certain other argument is NOT NULL. 
 #' 
-#' @param arg_not_null  name of argument to check for null to determine 
+#' @param arg_not_null  name of argument to check for null and FALSE to determine 
 #'                      whether \code{req_arg} is required
 #' @param req_arg       vector of name(s) of argument(s) to set as required when 
 #'                      \code{arg_not_null} is not null
@@ -444,17 +442,19 @@ check_dependent_requirements <- function(cli, args){
     }
     errs <- unlist(
               sapply(names(cli$dep_req), function(x){
-                if(x %in% names(args) && !is.null(args[[x]])){
-                    for(nm in cli$dep_req[[x]]){
-                        if(!nm %in% names(args)){
-                            return(paste0("  Argument '", nm, 
-                                          "' required when using '--", 
-                                          x, "'."))
-                        }
+                if(!x %in% names(args) | is.null(args[[x]]) | args[[x]] == FALSE){
+                    return(NULL)
+                }
+                for(nm in cli$dep_req[[x]]){
+                    if(!nm %in% names(args)){
+                        return(paste0("  Argument '", nm, 
+                                      "' required when using '--", 
+                                      x, "'."))
                     }
                 }
-              })
+              }
             )
+          )
     if(length(errs) > 0){
         print_usage(cli)
         for(err in errs){
