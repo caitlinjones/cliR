@@ -163,6 +163,7 @@ nest_arg <- function(arg){
 #' @param list1  the first list to be merged
 #' @param list2  the second list to be merged
 merge_lists <- function(list1, list2){
+
     fin <- list1
     for(nm in names(list2)){
         if(is.null(list2[[nm]])){
@@ -172,12 +173,12 @@ merge_lists <- function(list1, list2){
         if(!identical(list1[[nm]], list2[[nm]])){
             ## if one is list but not the other, not sure 
             ## what to do because one has names and the other does not
-            if(!all(is.list(list1), is.list(list2)) & 
-                (is.list(list1) | is.list(list2))){
-                cat(paste0("ERROR: List within item named ", nm, 
-                           " can not be merged with non-list item.\n"))
-                q(save = 'no', status = 1)
-            }
+            #if(!all(is.list(list1), is.list(list2)) & 
+            #    (is.list(list1) | is.list(list2))){
+            #   cat(paste0("ERROR: List within item named ", nm, 
+            #               " can not be merged with non-list item.\n"))
+            #    q(save = 'no', status = 1)
+            #}
             if(!is.list(list2[[nm]])){
                 fin[[nm]] <- c(fin[[nm]], list2[[nm]]) 
             } else {

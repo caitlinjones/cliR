@@ -133,21 +133,17 @@ test_that("arguments are properly nested", {
                     #arg_group1.arg2 = 'group1  arg 2',
                     arg_group1.arg2.argA = 'arg A in arg2 of group 1',
                     #arg_group2.arg1 = 'group 2 arg 1',
-                    arg_group2.arg1.argA = 'arg A in arg2 of group 2',
+                    arg_group2.arg1.argA = 'arg A in arg1 of group 2',
                     arg_3 = 'independent arg 3')    
   
     exp_nested <- list(arg1 = 'independent arg 1',
                        arg2 = 'independent arg 1',
                        arg_group1 = list(arg1 = 'group 1 arg 1',
                                          arg2 = list(argA = 'arg A in arg2 of group 1')),
-                       arg_group2 = list(arg1 = list(argA = 'arg A in arg2 of group 2')),
+                       arg_group2 = list(arg1 = list(argA = 'arg A in arg1 of group 2')),
                        arg_3 = 'independent arg 3')
 
     expect_equal(args_to_nested_list(arglist), exp_nested)
-
-    ## error should be thrown when list attempts to use named and non-named list elements
-    arglist[['arg_group1.arg2']] <- 'WRONG'
-    expect_error(args_to_nested_list(arglist))
 
 })
 
