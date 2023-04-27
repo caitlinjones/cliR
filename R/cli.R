@@ -1,11 +1,13 @@
+library(logger)
 CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
-#cli <<- configure_cli()
 
 #' Parse and validate command-line input
 #'
 #' Create an argument list and validate according to specifications in each CLI 
 #' argument object. 
 #'
+#' @param cli   command-line interface configuration, built with any
+#'              combination of argument objects 
 #' @param log   logical; when TRUE, final arguments will be logged in the 
 #'              console
 #' @param nest  logical; when TRUE, arguments with names including a '.' will
@@ -15,7 +17,7 @@ CLI_LOG <- structure(450L, level = 'CLI', class = c('loglevel', 'integer'))
 #' @return named list of all valid arguments 
 #' 
 #' @export
-parse_cl <- function(log = FALSE, nest = TRUE){
+parse_cl <- function(cli, log = FALSE, nest = TRUE){
 
     args <- commandArgs(trailingOnly = TRUE)
 
@@ -119,7 +121,7 @@ add_required_choice <- function(choice_id, arg_choices){
 #' Add a requirement to CLI object that an argument is only required when 
 #' a certain other argument is NOT NULL. 
 #' 
-#' @param arg_not_null  name of argument to check for null and FALSE to determine 
+#' @param arg_not_null  name of argument to check for null to determine 
 #'                      whether \code{req_arg} is required
 #' @param req_arg       vector of name(s) of argument(s) to set as required when 
 #'                      \code{arg_not_null} is not null
@@ -163,7 +165,6 @@ nest_arg <- function(arg){
 #' @param list1  the first list to be merged
 #' @param list2  the second list to be merged
 merge_lists <- function(list1, list2){
-
     fin <- list1
     for(nm in names(list2)){
         if(is.null(list2[[nm]])){
@@ -173,12 +174,12 @@ merge_lists <- function(list1, list2){
         if(!identical(list1[[nm]], list2[[nm]])){
             ## if one is list but not the other, not sure 
             ## what to do because one has names and the other does not
-            #if(!all(is.list(list1), is.list(list2)) & 
-            #    (is.list(list1) | is.list(list2))){
-            #   cat(paste0("ERROR: List within item named ", nm, 
-            #               " can not be merged with non-list item.\n"))
-            #    q(save = 'no', status = 1)
-            #}
+            if(!all(is.list(list1), is.list(list2)) & 
+                (is.list(list1) | is.list(list2))){
+                cat(paste0("ERROR: List within item named ", nm, 
+                           " can not be merged with non-list item.\n"))
+                q(save = 'no', status = 1)
+            }
             if(!is.list(list2[[nm]])){
                 fin[[nm]] <- c(fin[[nm]], list2[[nm]]) 
             } else {
@@ -222,26 +223,34 @@ args_to_nested_list <- function(args){
 #' 
 #' @return formatted argument doc string
 build_arg_help <- function(arg, longest_arg = NULL){
+    page_width <- 80
     x <- c("    ")
     nm <- c("--", arg$name)
-    shrt <- ifelse(is.null(arg$short), '', paste0('-', arg$short, ', '))
+    shrt <- ifelse(is.null(arg$short), "", paste0("-", arg$short, ", "))
     x <- c(x, shrt, nm)
+
     if(is.null(longest_arg)){
         longest_arg = nchar(arg$name) + nchar(shrt)
     }
     spcs <- (longest_arg - (nchar(arg$name) + nchar(shrt)) + 1)
     x <- c(x, rep(" ", spcs))
-    
-    doc_width <- 80 - (spcs + 6 + nchar(arg$name))
-    doc_str1 <- strwrap(arg$doc, width = doc_width, indent = 0)
+
+    doc_str <- arg$doc
+    if(!is.null(arg$options)){
+        opt_str <- paste0("[", paste(arg$options, collapse = "|"), "]")
+        doc_str <- paste(doc_str, opt_str, sep = " ")
+    }
+
+    doc_width <- page_width - (spcs + 6 + nchar(arg$name))
+    doc_str1 <- strwrap(doc_str, width = doc_width, indent = 0)
     x <- c(x, doc_str1[1])
     x <- c(x, "\n")
 
     if(length(doc_str1) > 1){
-        doc_str2 <- strwrap(gsub(doc_str1[1], "", arg$doc), 
-                            width = 80, 
-                            indent = 80 - doc_width, 
-                            exdent = 80 - doc_width)
+        doc_str2 <- strwrap(trimws(substring(doc_str, nchar(doc_str1[1]) + 1)),
+                            width = page_width, 
+                            indent = page_width - doc_width, 
+                            exdent = page_width - doc_width)
         x <- c(x, paste0(doc_str2, collapse = "\n"))
         x <- c(x, "\n")
     }
@@ -257,9 +266,9 @@ build_arg_help <- function(arg, longest_arg = NULL){
     }
     if(other_str != ""){
         other_str <- strwrap(other_str,
-                             width = 80, 
-                             indent = 80 - doc_width, 
-                             exdent = 80 - doc_width)
+                             width = page_width, 
+                             indent = page_width - doc_width, 
+                             exdent = page_width - doc_width)
         x <- c(x, paste0(other_str, collapse = "\n"))
         x <- c(x, "\n")
     }
@@ -443,19 +452,17 @@ check_dependent_requirements <- function(cli, args){
     }
     errs <- unlist(
               sapply(names(cli$dep_req), function(x){
-                if(!x %in% names(args) | is.null(args[[x]]) | args[[x]] == FALSE){
-                    return(NULL)
-                }
-                for(nm in cli$dep_req[[x]]){
-                    if(!nm %in% names(args)){
-                        return(paste0("  Argument '", nm, 
-                                      "' required when using '--", 
-                                      x, "'."))
+                if(x %in% names(args) && !is.null(args[[x]])){
+                    for(nm in cli$dep_req[[x]]){
+                        if(!nm %in% names(args)){
+                            return(paste0("  Argument '", nm, 
+                                          "' required when using '--", 
+                                          x, "'."))
+                        }
                     }
                 }
-              }
+              })
             )
-          )
     if(length(errs) > 0){
         print_usage(cli)
         for(err in errs){
@@ -569,26 +576,26 @@ structure_arg_list <- function(args, cli){
 #' @param cli_arg  argument object from CLI object
 #' @param arg_val  value provided for argument
 validate_arg <- function(cli_arg, arg_val){
+
     ## check type
-    if(cli_arg$type == 'file'){
+    if(cli_arg$type == "file"){
         files_exist <- sapply(arg_val, file.exists)
         if(!all(files_exist)){
             cat(paste0("\nERROR: file(s) do not exist:\n", 
                        paste(arg_val[!files_exist], collapse = "\n"), 
                        "\n"))
-            q(save = 'no', status = 1) 
+            q(save = "no", status = 1) 
         }
         return(NULL)
     }
-    if(cli_arg$type == 'path'){
+    if(cli_arg$type == "path"){
         dirs_exist <- sapply(arg_val, dir.exists)
         if(!all(dirs_exist)){
             cat(paste0("\nERROR: path(s) do not exist:\n", 
                        paste(arg_val[!dirs_exist], collapse = "\n"), 
                        "\n"))
-            q(save = 'no', status = 1)
+            q(save = "no", status = 1)
         }
-        return(NULL)
     }
     if(cli_arg$type == "integer" && !is.integer(arg_val)){
         arg_val <- tryCatch({
@@ -596,20 +603,20 @@ validate_arg <- function(cli_arg, arg_val){
                     }, error = function(){ 
                        cat(paste0("ERROR: ", cli_arg$name, 
                                   " should be of type INTEGER"))
-                       q(save = 'no', status = 1)
+                       q(save = "no", status = 1)
                    })
     }
     if(!cli_arg$type %in% c(typeof(arg_val), class(arg_val))){  
         cat(paste0("\nERROR: ", cli_arg$name, " should be of type ", 
                    toupper(cli_arg$type), ", not ", typeof(arg_val), "\n\n"))
-        q(save = 'no', status = 1)
+        q(save = "no", status = 1)
     }    
 
     ## check length
-    if(cli_arg$nargs != '+' && length(arg_val) != cli_arg$nargs){
+    if(cli_arg$nargs != "+" && length(arg_val) != cli_arg$nargs){
         cat(paste0("\nERROR: ", length(arg_val), " values given for arg ", 
                     cli_arg$name, ". Number allowed: ", cli_arg$nargs, "\n\n")) 
-        q(save = 'no', status = 1)
+        q(save = "no", status = 1)
     }
 
     ## check for valid option(s)
@@ -617,7 +624,7 @@ validate_arg <- function(cli_arg, arg_val){
         cat(paste0("\nERROR: Invalid option given for ", cli_arg$name, ": ", 
                    paste0(setdiff(arg_val, cli_arg$options), collapse = ", "), 
                    "\n\n"))
-        q(save = 'no', status = 1)
+        q(save = "no", status = 1)
     }
 }
 
