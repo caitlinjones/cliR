@@ -167,7 +167,7 @@ nest_arg <- function(arg){
 merge_lists <- function(list1, list2){
     fin <- list1
     for(nm in names(list2)){
-        if(is.null(list2[[nm]])){
+        if(is.null(list1[[nm]])){
             fin[[nm]] <- list2[[nm]]
             next
         } 
@@ -176,9 +176,8 @@ merge_lists <- function(list1, list2){
             ## what to do because one has names and the other does not
             if(!all(is.list(list1), is.list(list2)) & 
                 (is.list(list1) | is.list(list2))){
-                cat(paste0("ERROR: List within item named ", nm, 
+                stop(paste0("ERROR: List within item named ", nm, 
                            " can not be merged with non-list item.\n"))
-                q(save = 'no', status = 1)
             }
             if(!is.list(list2[[nm]])){
                 fin[[nm]] <- c(fin[[nm]], list2[[nm]]) 
@@ -398,11 +397,9 @@ usage_detail <- function(cli){
 check_required_args <- function(cli, args){
     if(!all(names(cli$req_args) %in% names(args))){
         print_usage(cli)
-        cat(paste0("\nMissing required arguments: ", 
+        stop(paste0("\nMissing required arguments: ", 
                    paste(setdiff(names(cli$req_args), names(args)), 
-                         collapse = ', ')))
-        cat("\n")
-        q(save = 'no', status = 1)
+                         collapse = ', '), "\n"))
     }
 }
 
@@ -435,7 +432,7 @@ check_required_choices <- function(cli, args){
             cat(paste0("\nERROR: ", err))
         }
         cat("\n")
-        q(save = 'no', status = 1)
+        stop()
     }
 }
 
@@ -468,7 +465,7 @@ check_dependent_requirements <- function(cli, args){
         for(err in errs){
             cat(paste0("\nERROR", err, "\n"))
         }
-        q(save = 'no', status = 1)
+        stop()
     }
 }
 
@@ -544,8 +541,7 @@ structure_arg_list <- function(args, cli){
 
                  if(!grepl("^--", arg)){
                      if(is.null(nmMap) || !argname %in% names(nmMap)){ 
-                         cat(paste0("Unrecognized argument: ", argname, "\n")) 
-                         q(save = 'no', status = 1)
+                         stop(paste0("Unrecognized argument: ", argname, "\n")) 
                      }
                      argname <- nmMap[argname]
                  }
@@ -581,50 +577,44 @@ validate_arg <- function(cli_arg, arg_val){
     if(cli_arg$type == "file"){
         files_exist <- sapply(arg_val, file.exists)
         if(!all(files_exist)){
-            cat(paste0("\nERROR: file(s) do not exist:\n", 
+            stop(paste0("\nERROR: file(s) do not exist:\n", 
                        paste(arg_val[!files_exist], collapse = "\n"), 
                        "\n"))
-            q(save = "no", status = 1) 
         }
         return(NULL)
     }
     if(cli_arg$type == "path"){
         dirs_exist <- sapply(arg_val, dir.exists)
         if(!all(dirs_exist)){
-            cat(paste0("\nERROR: path(s) do not exist:\n", 
+            stop(paste0("\nERROR: path(s) do not exist:\n", 
                        paste(arg_val[!dirs_exist], collapse = "\n"), 
                        "\n"))
-            q(save = "no", status = 1)
         }
     }
     if(cli_arg$type == "integer" && !is.integer(arg_val)){
         arg_val <- tryCatch({
                        as.integer(arg_val)
                     }, error = function(){ 
-                       cat(paste0("ERROR: ", cli_arg$name, 
+                       stop(paste0("ERROR: ", cli_arg$name, 
                                   " should be of type INTEGER"))
-                       q(save = "no", status = 1)
                    })
     }
     if(!cli_arg$type %in% c(typeof(arg_val), class(arg_val), "file", "path")){  
-        cat(paste0("\nERROR: ", cli_arg$name, " should be of type ", 
+        stop(paste0("\nERROR: ", cli_arg$name, " should be of type ", 
                    toupper(cli_arg$type), ", not ", typeof(arg_val), "\n\n"))
-        q(save = "no", status = 1)
     }    
 
     ## check length
     if(cli_arg$nargs != "+" && length(arg_val) != cli_arg$nargs){
-        cat(paste0("\nERROR: ", length(arg_val), " values given for arg ", 
+        stop(paste0("\nERROR: ", length(arg_val), " values given for arg ", 
                     cli_arg$name, ". Number allowed: ", cli_arg$nargs, "\n\n")) 
-        q(save = "no", status = 1)
     }
 
     ## check for valid option(s)
     if(!is.null(cli_arg$options) && !all(arg_val %in% cli_arg$options)){
-        cat(paste0("\nERROR: Invalid option given for ", cli_arg$name, ": ", 
+        stop(paste0("\nERROR: Invalid option given for ", cli_arg$name, ": ", 
                    paste0(setdiff(arg_val, cli_arg$options), collapse = ", "), 
                    "\n\n"))
-        q(save = "no", status = 1)
     }
 }
 
@@ -641,6 +631,9 @@ validate_args <- function(cli, args){
     check_required_choices(cli, args)
 
     dvnl <- lapply(names(args), function(x){
+        if(!x %in% cli$req_args & !x %in% cli$opt_args){
+            stop(paste0("\nERROR: Unrecognized argument '", x, ".' See usage for valid arguments\n"))
+        }
         arg_type <- ifelse(x %in% names(cli$req_args), 'req_args', 'opt_args')
         validate_arg(cli[[arg_type]][[x]], args[[x]])
     })          
