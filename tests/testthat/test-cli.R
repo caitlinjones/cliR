@@ -1,3 +1,10 @@
+source("../../R/cli.R")
+
+
+### each of these tests builds on the ones before,
+### so be aware they are not independent and so
+### the order of tests should not be modified
+
 default_arg <- list(name = NULL,
                     type = 'character',
                     doc = '',
@@ -128,17 +135,15 @@ test_that("lists within global CLI object are appended to properly", {
 test_that("arguments are properly nested", {
 
     arglist <- list(arg1 = 'independent arg 1',
-                    arg2 = 'independent arg 1',
-                    arg_group1.arg1 = 'group 1 arg 1',
-                    #arg_group1.arg2 = 'group1  arg 2',
+                    arg2 = 'independent arg 2',
+                    arg_group1.arg1 = list('group 1 arg 1'),
                     arg_group1.arg2.argA = 'arg A in arg2 of group 1',
-                    #arg_group2.arg1 = 'group 2 arg 1',
                     arg_group2.arg1.argA = 'arg A in arg1 of group 2',
                     arg_3 = 'independent arg 3')    
   
     exp_nested <- list(arg1 = 'independent arg 1',
-                       arg2 = 'independent arg 1',
-                       arg_group1 = list(arg1 = 'group 1 arg 1',
+                       arg2 = 'independent arg 2',
+                       arg_group1 = list(arg1 = list('group 1 arg 1'),
                                          arg2 = list(argA = 'arg A in arg2 of group 1')),
                        arg_group2 = list(arg1 = list(argA = 'arg A in arg1 of group 2')),
                        arg_3 = 'independent arg 3')
@@ -147,3 +152,7 @@ test_that("arguments are properly nested", {
 
 })
 
+test_that("invalid argument on command line prints error", {                    
+    tmp_args <- list(FAKE = 'fake_arg')                                         
+    expect_error(validate_args(cli, tmp_args)) 
+})                  
